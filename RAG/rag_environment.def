@@ -1,0 +1,36 @@
+Bootstrap: docker
+From: ubuntu:22.04
+
+%post
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update && apt-get install -y \
+        python3 \
+        python3-pip \
+        curl \
+        ca-certificates \
+        git \
+        zstd \
+        && rm -rf /var/lib/apt/lists/*
+
+    curl -fsSL https://ollama.com/install.sh | sh
+
+    pip3 install --no-cache-dir \
+        ollama \
+        numpy
+
+%environment
+    export LC_ALL=C
+    export PATH=/usr/local/bin:$PATH
+    export PYTHONUNBUFFERED=1
+
+%runscript
+    exec "$@"
+
+%labels
+    Application rag-ollama
+    Course SLAIF
+
+%help
+    Ubuntu image with Python, NumPy, the Ollama Python client, and the Ollama server.
+    Start the server, pull mxbai-embed-large and llama3, then run ask.py.
+    See lab02 and lab03.

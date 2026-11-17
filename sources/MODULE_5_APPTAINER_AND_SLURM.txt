@@ -1,0 +1,185 @@
+===============================================================================
+MODULE 5: DEPLOYING LOCAL RAG PIPELINES ON HPC (APPTAINER & SLURM)
+===============================================================================
+
+In this module, you will learn how to package a Retrieval-Augmented Generation 
+(RAG) pipeline into an Apptainer container and execute it as a GPU-accelerated 
+batch job using Slurm on an HPC cluster.
+
+-------------------------------------------------------------------------------
+1. REQUIRED FILES
+-------------------------------------------------------------------------------
+Ensure the following files are present in your working directory (~/RAG):
+
+  - cat-facts.txt          : Knowledge base source document.
+  - rag.py                 : RAG core logic (loads text, builds embeddings, queries Ollama).
+  - ask.py                 : Non-interactive execution script.
+  - rag_environment.def    : Apptainer container definition recipe.
+  - run_rag.sh             : Slurm submission batch script.
+
+To list your directory files with details:
+  $ ls -ltr
+
+-------------------------------------------------------------------------------
+2. TRANSFERRING FILES TO HPC
+-------------------------------------------------------------------------------
+If you prepared your files locally, transfer them to the cluster via SCP or 
+RSYNC (run from your local machine terminal):
+
+  $ scp -r ./RAG_files username@trdina-login.hpc.si:~/RAG
+
+Alternatively, directly open and create files on the cluster using a terminal editor:
+  $ nano ask.py   (or: $ vi ask.py)
+
+-------------------------------------------------------------------------------
+3. PREPARING THE PYTHON EXECUTION SCRIPT (ask.py)
+-------------------------------------------------------------------------------
+For non-interactive Slurm batch processing, ensure 'ask.py' does NOT request 
+user input via input().
+
+Open 'ask.py' for editing:
+  $ nano ask.py
+
+Verify it contains hardcoded queries suitable for batch runs:
+
+--------------------------------------------------
+# ask.py
+from rag import answer
+
+query = "What is an interesting fact about cat ears?"
+
+print(f"Question: {query}\n")
+response = answer(query)
+print("Answer:")
+print(response)
+--------------------------------------------------
+
+Save and exit:
+  - nano : Press CTRL+O, ENTER to save, then CTRL+X to exit.
+  - vi   : Press ESC, type :wq and press ENTER.
+
+-------------------------------------------------------------------------------
+4. BUILDING THE APPTAINER CONTAINER IMAGE
+-------------------------------------------------------------------------------
+The Apptainer definition file ('rag_environment.def') installs Ubuntu 22.04, 
+Python libraries, zstd, and the Ollama server runtime.
+
+Check 'rag_environment.def':
+  $ nano rag_environment.def
+
+Definition File Structure:
+--------------------------------------------------
+Bootstrap: docker
+From: ubuntu:22.04
+
+%post
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update && apt-get install -y \
+        python3 \
+        python3-pip \
+        curl \
+        ca-certificates \
+        git \
+        zstd \
+        && rm -rf /var/lib/apt/lists/*
+
+    curl -fsSL https://ollama.com/install.sh | sh
+
+    pip3 install --no-cache-dir \
+        ollama \
+        numpy \
+        torch \
+        transformers
+
+%environment
+    export LC_ALL=C
+    export PATH=/usr/local/bin:$PATH
+
+%runscript
+    exec "$@"
+--------------------------------------------------
+
+Build the SIF image using unprivileged root emulation (--fakeroot):
+  $ apptainer build --fakeroot rag_environment.sif rag_environment.def
+
+Note: Ensure all section headers (%post, %environment, %runscript) start 
+at the beginning of the line without leading spaces or tabs.
+
+-------------------------------------------------------------------------------
+5. PREPARING THE SLURM BATCH SCRIPT (run_rag.sh)
+-------------------------------------------------------------------------------
+Edit 'run_rag.sh' to configure resource requests and job orchestration:
+
+  $ nano run_rag.sh
+
+Script Contents:
+--------------------------------------------------
+#!/bin/bash
+#SBATCH --job-name=rag_ollama_gpu
+#SBATCH --output=rag_output_%j.log
+#SBATCH --error=rag_error_%j.log
+#SBATCH --partition=compute
+#SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=16G
+#SBATCH --time=00:20:00
+
+# 1. Direct model cache to scratch space to respect home directory quotas
+export OLLAMA_MODELS="/scratch/$USER/ollama_models"
+mkdir -p "$OLLAMA_MODELS"
+
+# 2. Launch background Ollama server inside Apptainer with GPU passthrough (--nv)
+echo "Starting Ollama server on GPU..."
+apptainer exec --nv --env OLLAMA_MODELS="$OLLAMA_MODELS" rag_environment.sif ollama serve > ollama_server.log 2>&1 &
+SERVER_PID=$!
+
+sleep 5
+
+# 3. Download embedding and generation models into scratch cache
+echo "Pulling models..."
+apptainer exec --nv --env OLLAMA_MODELS="$OLLAMA_MODELS" rag_environment.sif ollama pull mxbai-embed-large
+apptainer exec --nv --env OLLAMA_MODELS="$OLLAMA_MODELS" rag_environment.sif ollama pull llama3
+
+# 4. Execute the RAG Python pipeline
+echo "Running RAG script..."
+apptainer exec --nv --env OLLAMA_MODELS="$OLLAMA_MODELS" rag_environment.sif python3 ask.py
+
+# 5. Clean up background server process upon completion
+kill $SERVER_PID
+--------------------------------------------------
+
+Make the script executable:
+  $ chmod +x run_rag.sh
+
+-------------------------------------------------------------------------------
+6. SUBMITTING & MONITORING THE BATCH JOB
+-------------------------------------------------------------------------------
+1. Submit your job to the Slurm workload manager:
+   $ sbatch run_rag.sh
+
+   Output example:
+   Submitted batch job 527916
+
+2. Monitor job progress in the queue:
+   $ squeue -u $USER
+
+   Job States:
+     - PD (Pending) : Waiting for GPU allocation on compute nodes.
+     - R  (Running) : Actively initializing server, pulling models, and running Python code.
+
+-------------------------------------------------------------------------------
+7. CHECKING RESULTS & LOGS
+-------------------------------------------------------------------------------
+Once the job finishes, inspect the output files created in your working directory:
+
+1. View RAG question & generated answer output:
+   $ cat rag_output_<JOB_ID>.log
+   (e.g., cat rag_output_527916.log)
+
+2. Check standard error output for warnings or exceptions:
+   $ cat rag_error_<JOB_ID>.log
+
+3. Check Ollama background server diagnostics:
+   $ cat ollama_server.log
+
+===============================================================================

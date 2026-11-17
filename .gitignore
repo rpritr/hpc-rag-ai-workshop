@@ -1,0 +1,8 @@
+*.sif
+*.log
+__pycache__/
+*.pyc
+.DS_Store
+rag_output_*.log
+rag_error_*.log
+INSTRUCTOR.md
