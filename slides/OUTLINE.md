@@ -60,7 +60,7 @@ The domain is cats so the room can judge the answers.
 |-------|------|
 | `mxbai-embed-large` | Vectors for search |
 | `llama3` | The written answer |
-| Ollama | Serves both, on the GPU node, only while the job runs |
+| Ollama | Serves both, on the compute node, only while the job runs |
 
 Python asks Ollama over HTTP. The weights are not pip packages.
 
@@ -82,7 +82,7 @@ Python asks Ollama over HTTP. The weights are not pip packages.
 
 Login node: edit files, build the image.
 
-GPU node: Ollama, embeddings, the answer. You get there with `sbatch`, and you come back through the log file.
+Compute node: Ollama, embeddings, the answer. You get there with `sbatch`, and you come back through the log file. A free GPU is optional. The script as shipped uses 64 CPU cores.
 
 ---
 

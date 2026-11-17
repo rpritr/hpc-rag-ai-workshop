@@ -1,22 +1,33 @@
 #!/bin/bash
-#SBATCH --job-name=rag_ollama_gpu
+#SBATCH --job-name=rag_ollama
 #SBATCH --output=rag_output_%j.log
 #SBATCH --error=rag_error_%j.log
 #SBATCH --partition=compute
-#SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=4
-#SBATCH --mem=16G
+#SBATCH --cpus-per-task=64
+#SBATCH --mem=32G
 #SBATCH --time=00:45:00
+
+# CPU is the default. On Trdina the idle nodes have no GPU, and this pipeline
+# runs without one. Ollama 0.40 sees all 128 host CPUs inside the container and
+# starts 64 threads. Slurm must grant those 64 cores. With only 4 or 16 cores
+# each embed takes about a minute and the 45 minute job dies during the index.
+#
+# When a GPU is free, uncomment the next line and add --nv after `apptainer exec`.
+##SBATCH --gres=gpu:1
 
 # Confirm the partition name with `sinfo` before the session.
 # The first run is long because it downloads the models.
-# Later runs reuse /scratch/$USER/ollama_models and finish faster.
+# Later runs reuse $OLLAMA_MODELS and finish faster.
+#
+# Trdina compute nodes cannot create /scratch/$USER. Home is on shared Ceph.
+# On a cluster that gives you scratch, use this instead:
+#   export OLLAMA_MODELS="/scratch/${USER}/ollama_models"
 
 set -euo pipefail
 
 cd "${SLURM_SUBMIT_DIR:-$PWD}"
 
-export OLLAMA_MODELS="/scratch/${USER}/ollama_models"
+export OLLAMA_MODELS="${HOME}/ollama_models"
 mkdir -p "$OLLAMA_MODELS"
 
 # One port per job, so two students on the same node do not collide.
@@ -37,7 +48,8 @@ cleanup() {
 trap cleanup EXIT
 
 run_in_container() {
-    apptainer exec --nv \
+    # Add --nv after `exec` when #SBATCH --gres=gpu:1 above is uncommented.
+    apptainer exec \
         --env OLLAMA_MODELS="$OLLAMA_MODELS" \
         --env OLLAMA_HOST="$OLLAMA_HOST" \
         --env PYTHONUNBUFFERED=1 \
@@ -48,7 +60,7 @@ echo "Job ${SLURM_JOB_ID} on $(hostname)"
 echo "Ollama host: ${OLLAMA_HOST}"
 echo "Model cache: ${OLLAMA_MODELS}"
 
-echo "Starting Ollama server on GPU..."
+echo "Starting Ollama server..."
 run_in_container ollama serve > ollama_server.log 2>&1 &
 SERVER_PID=$!
 

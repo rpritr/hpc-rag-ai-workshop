@@ -14,7 +14,7 @@ By the end of the session, participants can:
 
 - explain a RAG pipeline as retrieve, then generate
 - package that pipeline in an Apptainer image
-- submit it as a GPU batch job with Slurm
+- submit it as a Slurm batch job, on CPU, with a GPU when one is free
 - read the job logs and change the question
 
 ---
@@ -37,7 +37,7 @@ About 3 hours, including one build and one queue wait.
 | 0:20 | [Lab 01](./lab01/README.md) | Read the knowledge base, `rag.py`, and `ask.py` |
 | 0:50 | [Lab 02](./lab02/README.md) | Build `rag_environment.sif` and smoke-test Python |
 | 1:35 | Break | The image build is the natural break if it is still running |
-| 1:50 | [Lab 03](./lab03/README.md) | Submit the GPU job, watch the queue, read the answer |
+| 1:50 | [Lab 03](./lab03/README.md) | Submit the job, watch the queue, read the answer |
 | 2:35 | Second question | Change `query` in `ask.py` and submit again |
 | 2:50 | Close | Reflection questions |
 
@@ -51,7 +51,7 @@ Facilitation notes, the pre-flight checklist, and what to do when the room gets 
 |-----|--------|----------------------------|
 | [Lab 01](./lab01/README.md) | The RAG pipeline | Point at the fact file, the retrieval step, and the generation step |
 | [Lab 02](./lab02/README.md) | The Apptainer image | Build the image and show that Python can import `ollama` and `numpy` |
-| [Lab 03](./lab03/README.md) | The Slurm GPU job | Submit the job, find the answer in the log, and ask a second question |
+| [Lab 03](./lab03/README.md) | The Slurm job | Submit the job, find the answer in the log, and ask a second question |
 
 ---
 
@@ -91,7 +91,9 @@ sbatch --version
 sinfo
 ```
 
-`sinfo` must show the partition named in `run_rag.sh` (`compute` in the script as shipped). Change that line if the GPU partition has another name.
+`sinfo` must show the partition named in `run_rag.sh` (`compute` in the script as shipped). Change that line if the partition has another name.
+
+The job runs on CPU and asks for 64 cores. On Trdina, Ollama 0.40 inside the container sees 128 host CPUs and starts 64 threads. The Slurm allocation has to match, or each embedding takes about a minute. The model cache is `$HOME/ollama_models`, because compute nodes have no writable `/scratch`. When a GPU is free, uncomment `#SBATCH --gres=gpu:1` in `RAG/run_rag.sh` and add `--nv` after `apptainer exec`. Details are in [Lab 03](./lab03/README.md).
 
 A full dry run by the instructor, the day before, is part of the workshop. See [INSTRUCTOR.md](./INSTRUCTOR.md).
 

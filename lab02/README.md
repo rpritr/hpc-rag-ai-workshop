@@ -53,7 +53,7 @@ Section headers start at the beginning of the line.
 - the `ollama` binary, via the upstream install script
 - the Python packages `ollama` and `numpy`
 
-The GPU driver stays on the host. Lab 03 passes it in with `--nv` at run time. It is not installed into the image.
+The GPU driver stays on the host. It is not installed into the image. Lab 03 adds `--nv` only when the job requests a GPU.
 
 PyTorch and Transformers are not in this recipe. The module handout lists them, and this pipeline never imports them. Ollama runs the models. Leaving the extra packages out keeps the build inside the session.
 
@@ -97,7 +97,7 @@ Your files are visible inside the container because Apptainer exposes the curren
 apptainer exec rag_environment.sif python3 -c "import rag; print(len(rag.load_facts()))"
 ```
 
-That prints the number of facts. It does not call Ollama. Calling the models comes in Lab 03, where the server is running on a GPU node.
+That prints the number of facts. It does not call Ollama. Calling the models comes in Lab 03, where the server runs inside the Slurm job.
 
 ---
 

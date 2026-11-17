@@ -11,7 +11,7 @@ By the end of this lab you can:
 - find the knowledge base, the retrieval code, and the question
 - explain why a batch script cannot call `input()`
 
-You will not start the models in this lab. That happens on a GPU node in Lab 03. The login node is for reading and editing.
+You will not start the models in this lab. That happens in the Slurm job in Lab 03. The login node is for reading and editing.
 
 ---
 
