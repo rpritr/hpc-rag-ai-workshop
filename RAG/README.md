@@ -15,5 +15,3 @@ bash check_layout.sh
 The job uses 64 CPU cores. When a GPU is free, uncomment `#SBATCH --gres=gpu:1` in `run_rag.sh` and add `--nv` after `apptainer exec`. The model cache is `$HOME/ollama_models`.
 
 `rag_environment.sif` and `*.log` are created here. They are not part of the git repository.
-
-How to lead the session: [INSTRUCTOR.md](../INSTRUCTOR.md).

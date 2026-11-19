@@ -41,7 +41,7 @@ About 3 hours, including one build and one queue wait.
 | 2:35 | Second question | Change `query` in `ask.py` and submit again |
 | 2:50 | Close | Reflection questions |
 
-Facilitation notes, the pre-flight checklist, and what to do when the room gets stuck are in [INSTRUCTOR.md](./INSTRUCTOR.md). Speaker notes for the opening are in [slides/OUTLINE.md](./slides/OUTLINE.md).
+The opening deck is [slides/rag_hpc_workshop.pdf](./slides/rag_hpc_workshop.pdf) (`slides/rag_hpc_workshop.tex`).
 
 ---
 
@@ -95,16 +95,14 @@ sinfo
 
 The job runs on CPU and asks for 64 cores. On Trdina, Ollama 0.40 inside the container sees 128 host CPUs and starts 64 threads. The Slurm allocation has to match, or each embedding takes about a minute. The model cache is `$HOME/ollama_models`, because compute nodes have no writable `/scratch`. When a GPU is free, uncomment `#SBATCH --gres=gpu:1` in `RAG/run_rag.sh` and add `--nv` after `apptainer exec`. Details are in [Lab 03](./lab03/README.md).
 
-A full dry run by the instructor, the day before, is part of the workshop. See [INSTRUCTOR.md](./INSTRUCTOR.md).
-
 ---
 
 ## Project layout
 
 ```text
 README.md                 this page
-INSTRUCTOR.md             how to lead the session
-slides/OUTLINE.md         opening talk track
+slides/rag_hpc_workshop.pdf   opening slides
+slides/rag_hpc_workshop.tex  SLAIF beamer source
 lab01/README.md           pipeline walkthrough
 lab02/README.md           container build
 lab03/README.md           Slurm job
